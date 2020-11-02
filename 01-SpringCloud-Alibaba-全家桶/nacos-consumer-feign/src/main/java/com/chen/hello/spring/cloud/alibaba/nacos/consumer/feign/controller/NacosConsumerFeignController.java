@@ -13,6 +13,6 @@ public class NacosConsumerFeignController {
 
     @GetMapping(value = "/echo/hi")
     public String echo() {
-        return echoService.echo("Hi Feign");
+        return echoService.echo("来自 consumer-feign 的调用：");
     }
 }

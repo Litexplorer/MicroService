@@ -10,7 +10,7 @@
         <relativePath>../dependencies/pom.xml</relativePath>
     </parent>
 
-    <artifactId>consumer</artifactId>
+    <artifactId>nacos-consumer</artifactId>
     <packaging>jar</packaging>
 
     <name>nacos-consumer</name>

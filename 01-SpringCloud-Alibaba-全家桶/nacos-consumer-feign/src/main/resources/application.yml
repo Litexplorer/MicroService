@@ -4,7 +4,7 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 10.4.62.239:8848
+        server-addr: 10.4.60.73:8848
 
 server:
   port: 9092

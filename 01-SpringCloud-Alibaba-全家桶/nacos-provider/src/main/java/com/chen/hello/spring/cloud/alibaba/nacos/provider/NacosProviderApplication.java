@@ -28,7 +28,7 @@ public class NacosProviderApplication {
     public class EchoController {
         @GetMapping(value = "/echo/{message}")
         public String echo(@PathVariable String message) {
-            return "Hello Nacos Discovery " + message;
+            return "这是来自于 provider 的消息：" + message;
         }
     }
 }
