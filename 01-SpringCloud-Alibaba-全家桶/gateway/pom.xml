@@ -46,6 +46,12 @@
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
         <!-- Spring Cloud End -->
+        <!-- 分布式配置中心 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
 
         <!-- Commons Begin -->
         <dependency>
