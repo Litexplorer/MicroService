@@ -17,9 +17,6 @@ public class NacosConsumerController {
     @Autowired
     private RestTemplate restTemplate;
 
-    // @Value("${spring.application.name}")
-    // private String appName;
-
     @GetMapping(value = "/echo/app/name")
     public String echo() {
         //使用 LoadBalanceClient 和 RestTemplate 结合的方式来访问

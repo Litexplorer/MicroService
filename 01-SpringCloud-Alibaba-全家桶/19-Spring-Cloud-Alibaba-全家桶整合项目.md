@@ -793,3 +793,192 @@ Spring Cloud Gateway 是 Spring 官方基于 Spring 5.0，Spring Boot 2.0 和 Pr
 
 过滤器之间使用虚线分开是因为：过滤器可能会发送代理请求之前（`pre`）或之后（`post`）执行业务逻辑。
 
+### 5.2 整合 Gateway 工程
+
+#### 5.2.1 创建项目
+
+创建目录 gateway，并新建 pom 文件，文件内容如下所示：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.chen</groupId>
+        <artifactId>dependencies</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../dependencies/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>gateway</artifactId>
+    <packaging>jar</packaging>
+
+    <name>gateway</name>
+
+    <dependencies>
+        <!-- Spring Boot Begin -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Spring Boot End -->
+
+        <!-- Spring Cloud Begin -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway</artifactId>
+        </dependency>
+        <!-- Spring Cloud End -->
+
+        <!-- Commons Begin -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+        </dependency>
+        <!-- Commons Begin -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.chen.hello.spring.cloud.gateway.GatewayApplication</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+```
+
+**注意：**
+
+Spring Cloud Gatewa 不使用 Web 作为服务器，而是**<u>使用 WebFlux 作为服务器</u>**，Gateway 项目已经依赖了` starter-webflux`，所以不能依赖 `starter-web`；此外，由于过滤器等功能依然需要 Servlet 支持，故这里还需要依赖 `javax.servlet-api`。
+
+#### 5.2.2 创建启动类以及配置信息
+
+在项目中创建启动类：
+
+```java
+/**
+ * @Author: ChromeChen
+ * @Description: 网关服务
+ * @Date: Created in 16:57 2020/11/2 0002
+ * @Modified By:
+ */
+@SpringBootApplication
+@EnableDiscoveryClient
+@EnableFeignClients
+public class GatewayApplication {
+
+    public static void main(String[] args) {
+
+        SpringApplication.run(GatewayApplication.class, args);
+    }
+}
+```
+
+从上面的注解中，我们可以看出：网关的启动类和 feign 启动类的配置一致。
+
+新增 application.yml 配置文件：
+
+```yaml
+spring:
+  application:
+    # 应用名称
+    name: gateway
+  cloud:
+    # 使用 Naoos 作为服务注册发现
+    nacos:
+      discovery:
+        server-addr: 10.4.60.73:8848
+    # 使用 Sentinel 作为熔断器
+#    sentinel:
+#      transport:
+#        port: 8721
+#        dashboard: localhost:8080
+    # 路由网关配置
+    gateway:
+      # 设置与服务注册发现组件结合，这样可以采用服务名的路由策略
+      discovery:
+        locator:
+          enabled: true
+      # 配置路由规则
+      routes:
+        # 采用自定义路由 ID（有固定用法，不同的 id 有不同的功能，详见：https://cloud.spring.io/spring-cloud-gateway/2.0.x/single/spring-cloud-gateway.html#gateway-route-filters）
+        - id: NACOS-CONSUMER
+          # 采用 LoadBalanceClient 方式请求，以 lb:// 开头，后面的是注册在 Nacos 上的服务名
+          uri: lb://nacos-consumer
+          # Predicate 翻译过来是“谓词”的意思，必须，主要作用是匹配用户的请求，有很多种用法
+          predicates:
+            # Method 方法谓词，这里是匹配 GET 和 POST 请求
+            - Method=GET,POST
+        - id: NACOS-CONSUMER-FEIGN
+          uri: lb://nacos-consumer-feign
+          predicates:
+            - Method=GET,POST
+
+server:
+  port: 9000
+
+# 目前无效
+feign:
+  sentinel:
+    enabled: true
+
+# 目前无效
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+# 配置日志级别，方别调试
+logging:
+  level:
+    org.springframework.cloud.gateway: debug
+
+```
+
+从上面的部分配置信息可以看出：网关可以通过服务名称来调用对应的服务。
+
+启动项目，观察 nacos 页面，可以看到 Gateway 服务已经注册到 nacos 中：
+
+![image-20201102173344145](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201102173344145.png)
+
+我们依次通过网关访问 consumer 服务以及 consumer-feign 服务：
+
+```
+# 访问 consumer 服务
+http://localhost:9000/nacos-consumer/echo/app/name
+# 访问 consumer-feign 服务
+http://localhost:9000/nacos-consumer-feign/echo/hi
+```
+
+得到的结果和直接访问的一致。
+
+由此可见，使用网关时语法格式为：
+$$
+网关 IP:网关端口/服务名称/请求路径
+$$
