@@ -366,6 +366,29 @@ Spring Cloud Alibaba 致力于提供微服务开发的一站式解决方案。�
 
 ```
 
+编写配置文件：
+
+```yaml
+spring:
+  application:
+    name: nacos-provider
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 10.4.60.73:8848
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+```
+
+
+
 依据包名，创建对应的启动类：
 
 ```java
@@ -396,7 +419,348 @@ public class NacosProviderApplication {
 }
 ```
 
-① 当前项目开启服务注册与发现。通过这个注解，我们可以将当前服务注册到
+① 当前项目开启服务注册与发现。通过这个注解，我们可以将当前服务注册到 nacos 中。
+
+启动项目，然后观察 nacos 服务列表，可以发现当前服务已经注册到 nacos 注册中心中：
+
+![image-20201102134925368](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201102134925368.png)
+
+### 2.3 创建服务消费者 nacos-consumer
+
+创建文件夹 nacos-consumer，然后添加 pom 文件，在文件中添加以下信息：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.chen</groupId>
+        <artifactId>dependencies</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../dependencies/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>nacos-consumer</artifactId>
+    <packaging>jar</packaging>
+
+    <name>nacos-consumer</name>
+
+    <dependencies>
+        <!-- Spring Boot Begin -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Spring Boot End -->
+
+        <!-- Spring Cloud Begin -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <!-- Spring Cloud End -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.chen.hello.spring.cloud.alibaba.nacos.consumer.NacosConsumerApplication</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+```
+
+编写启动类：
+
+```java
+/**
+ * @Author: ChromeChen
+ * @Description: Nacos 服务消费者，让消费者去调用服务提供者
+ * @Date: Created in 22:10 2020/11/1 0001
+ * @Modified By:
+ */
+@SpringBootApplication
+@EnableDiscoveryClient
+public class NacosConsumerApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(NacosConsumerApplication.class, args);
+    }
+}
+```
+
+创建 application.yml 文件：
+
+```yaml
+spring:
+  application:
+    name: nacos-consumer
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 10.4.60.73:8848
+
+server:
+  port: 9091
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+```
+
+
+
+可以看到：配置基本和 provider 一致。
+
+启动项目以后，可以发现 nacos-consumer 也注册到 nacos 中了：
+
+![image-20201102140950115](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201102140950115.png)
+
+#### 2.3.1 consumer 调用 provider
+
+为了可以达到 consumer 调用 provider，我们需要使用 RestTemplate 的实例进行调用。
+
+创建 RestTemplate 实例：
+
+```java
+/**
+ * @Author: ChromeChen
+ * @Description:
+ * @Date: Created in 22:12 2020/11/1 0001
+ * @Modified By:
+ */
+@Component
+public class NacosConsumerConfiguration {
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+}
+```
+
+上面的代码向 Spring 容器中注册了一个 RestTemplate 的 Bean。
+
+然后我们在 consumer 控制器中通过 RestTemplate 调用 provider 的内容：
+
+```java
+@RestController
+public class NacosConsumerController {
+
+    @Autowired
+    private LoadBalancerClient loadBalancerClient;
+
+    @Autowired
+    private RestTemplate restTemplate;
+
+    @GetMapping(value = "/echo/app/name")
+    public String echo() {
+        //使用 LoadBalanceClient 和 RestTemplate 结合的方式来访问
+        ServiceInstance serviceInstance = loadBalancerClient.choose("nacos-provider");
+        String url = String.format("http://%s:%s/echo/hahaha", serviceInstance.getHost(), serviceInstance.getPort());
+        
+        String message = "nacos-consumer 调用 provider 消息：" + restTemplate.getForObject(url, String.class);   // ①
+        return message;
+    }
+}
+```
+
+① 这行代码就是 consumer 调用 provider，在调用的时候，需要传递两个参数：url 和返回值类型。
+
+- url 由以下几部分组成：IP、端口、请求路径；其中，IP 和端口都是从 LoadBalancerClient 获得。
+
+我们访问 consumer 的请求：`localhost:9091/echo/app/name`，此时页面会返回以下信息：
+
+![image-20201102142529053](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201102142529053.png)
+
+这说明：consumer 已经通过 RestTemplate 成功调用到了 provider 。
+
+#### 2.3.2 总结
+
+通过上面的创建流程，我们可以发现：
+
+1. alibaba 微服务搭建流程：基本 SpringBoot 项目 + 启动类上 @EnableDiscoveryClient 注解 + 配置文件；
+2. 通过 RestTemplate 调用：需要传递 url 参数，url 中的 IP 和端口都来自于 LoadBalancerClient 。
+
+### 2.4 创建服务消费者 nacos-consumer-feign
+
+这个项目是为了联系如何使用 feign 来实现远程调用（也就是调用 provider 服务）。
+
+创建文件夹 nacos-consumer-feign ，创建 pom 文件，并在文件中添加以下代码：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.chen</groupId>
+        <artifactId>dependencies</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../dependencies/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>nacos-consumer-feign</artifactId>
+    <packaging>jar</packaging>
+
+    <name>consumer-feign</name>
+
+    <dependencies>
+        <!-- Spring Boot Begin -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Spring Boot End -->
+
+        <!-- Spring Cloud Begin -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <!-- Spring Cloud End -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.chen.hello.spring.cloud.alibaba.nacos.consumer.feign.NacosConsumerFeignApplication</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+```
+
+创建启动类：
+
+```java
+/**
+ * @Author: ChromeChen
+ * @Description:
+ * @Date: Created in 22:16 2020/11/1 0001
+ * @Modified By:
+ */
+@SpringBootApplication
+@EnableDiscoveryClient
+@EnableFeignClients	// ①
+public class NacosConsumerFeignApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(NacosConsumerFeignApplication.class, args);
+    }
+}
+```
+
+① 增加了 @EnableFeignClients 注解，开启feign 调用。
+
+编写 application.yml 文件：
+
+```yaml
+spring:
+  application:
+    name: nacos-consumer-feign
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 10.4.60.73:8848
+
+server:
+  port: 9092
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+```
+
+启动项目，可以发现 nacos-consumer-feign 成功注册到 nacos 中：
+
+![image-20201102143809106](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201102143809106.png)
+
+#### 2.4.1 通过 feign 进行远程调用
+
+创建一个接口 EchoService
+
+```java
+@FeignClient(value = "nacos-provider")	// ① 
+public interface EchoService {
+
+    @GetMapping(value = "/echo/{message}")	// ②
+    String echo(@PathVariable("message") String message);
+}
+```
+
+① 该注解表示当前接口会调用远程服务，远程服务名为 nacos-provider；
+
+② 指定远程服务的地址；
+
+此时，consumer-feign 服务已经拥有了调用 provider 服务的能力，此时，我们只需要再在 consumer-feign 项目中暴露一个接口，并在该接口中调用 provider 服务即可。
+
+```java
+@RestController
+public class NacosConsumerFeignController {
+
+    @Autowired
+    private EchoService echoService;	// ①
+
+    @GetMapping(value = "/echo/hi")
+    public String echo() {
+        return echoService.echo("来自 consumer-feign 的调用：");
+    }
+}
+```
+
+① 可以直接注入 EchoService（也就是说：我们可以直接注入『使用 @EnableFeignClients 修饰的接口』）。
+
+启动项目，并访问地址 `localhost:9092/echo/hi`，可以得到以下输出：
+
+![image-20201102162251824](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201102162251824.png)
+
+#### 2.4.2 总结
+
+通过上面的例子可以看出：
+
+feign 调用时，可以直接定义接口，只需要在该接口上添加注解 @EnableFeignClients 即可。该接口可以直接被注入（注入的应该是代理）。我们可以在该接口中定义多个请求，只需要对应同一个服务提供者即可。
 
 
 

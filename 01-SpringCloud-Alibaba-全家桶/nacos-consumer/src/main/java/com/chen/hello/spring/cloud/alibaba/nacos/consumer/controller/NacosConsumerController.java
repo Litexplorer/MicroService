@@ -17,15 +17,15 @@ public class NacosConsumerController {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${spring.application.name}")
-    private String appName;
+    // @Value("${spring.application.name}")
+    // private String appName;
 
     @GetMapping(value = "/echo/app/name")
     public String echo() {
         //使用 LoadBalanceClient 和 RestTemplate 结合的方式来访问
         ServiceInstance serviceInstance = loadBalancerClient.choose("nacos-provider");
-        String url = String.format("http://%s:%s/echo/%s", serviceInstance.getHost(), serviceInstance.getPort(), appName);
-        String message = "nacos-consumer 调用 provider 消息：" + restTemplate.getForObject(url, String.class);
+        String url = String.format("http://%s:%s/echo/hahaha", serviceInstance.getHost(), serviceInstance.getPort());
+        String message = "nacos-consumer 调用 provider 消息：" + restTemplate.getForObject(url, String.class);   // ①
         return message;
     }
 }
