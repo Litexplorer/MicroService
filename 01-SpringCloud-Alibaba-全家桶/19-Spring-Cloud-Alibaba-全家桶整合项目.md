@@ -762,7 +762,86 @@ public class NacosConsumerFeignController {
 
 feign 调用时，可以直接定义接口，只需要在该接口上添加注解 @EnableFeignClients 即可。该接口可以直接被注入（注入的应该是代理）。我们可以在该接口中定义多个请求，只需要对应同一个服务提供者即可。
 
+## 四、链路追踪
 
+### 4.1 什么是链路追踪
+
+微服务架构是通过业务来划分服务的，使用 REST 调用。对外暴露一个接口，可能需要很多个服务协同才能完成这个接口的功能。如果链路上任何一个服务出现问题或者网络超时，都会导致接口调用失败。随着业务的不断扩张，服务之间的相互调用会越来越复杂。
+
+![img](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/2279594-dd72907e82f89fd6.png)
+
+![img](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/2279594-4b7d1b6abe595390.png)
+
+面对以上情况，我们需要一些可以帮助理解系统行为、用于分析性能问题的工具，以便于在发生故障的时候，能够快速定位和解决问题。这就是所谓的 APM（应用性能管理）。
+
+### 4.2 什么是 SkyWalking
+
+目前主要的一些 APM 工具有：Cat、Zipkin、Pinpoint、SkyWalking；Apache SkyWalking 是观察性能分析平台和应用性能管理系统。提供分布式追踪。服务网格遥测分析。度量聚合和可视化一体解决方案。
+
+![img](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/Lusifer_2019011401370001.jpeg)
+
+SkyWalking 的组成部分有：
+
+- **SkyWalking Agent**：使用 JavaAgent 做字节码植入，无侵入式的收集，并通过 HTTP 或者 gRPC 方式发送数据到 SkyWalking Collector；
+- **SkyWalking Collector**：链路数据收集器，对 agent 传过来的数据进行整合分析处理并落入相关的数据存储中；
+- **Storage：SkyWalking** 的存储，时间更迭，SW 已经开发迭代到了 6.x 版本，在 6.x 版本中支持以 ElasticSearch、MySQL、TiDB、H2 等数据库作为存储截止进行数据存储；
+- **UI**：Web 可视化平台，用来展示落地数据；
+
+### 4.3 SkyWalking 的功能特性
+
+- 多种监控手段，语言探针和服务网格（Service Mesh）
+- 多语言自动探针，Java、.NET Core 和 Node.JS
+- 轻量高效，UI、存储、集群管理多种机制可选；
+- 支持告警；
+- 优秀的可视化方案；
+
+### 4.4 配置 SkyWalking 服务端
+
+从上面的介绍中可以看出来：SkyWalking  Collector 就是 SkyWalking 就是其服务端，而且支持 ElasticSearch 作为其存储介质。下面就来介绍如何安装 SkywAlking 服务端。
+
+如果我们需要使用 ElasticSearch 作为其存储结构，我们需要先安装 ElasticSearch 服务器。本次例子是基于 Windows 系统安装 ElasticSearch 和 SkyWalking的。
+
+#### 4.4.1 Windows 安装 ElasticSearch 服务器
+
+首先去到官网下载 ElasticSearch 的压缩包：https://www.elastic.co/cn/downloads/elasticsearch 。
+
+下载完成以后，解压到某个目录下，然后进入到该目录的 bin 子目录中，运行：
+
+```bash
+elasticsearch.bat
+```
+
+以下日志：
+
+![image-20201103140358195](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201103140358195.png)
+
+> 注意：启动 ElasticSearch 的时候，需要设置 JAVA_HOME 环境变量，如果该环境变量没有设置正确，会出现错误。
+
+启动完成以后，我们访问地址： localhost:9200。如果启动成功，那么会返回以下信息：
+
+![image-20201103140643015](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201103140643015.png)
+
+#### 4.4.2 Windows 安装 SkyWalking
+
+当按照上面的教程成功运行 ElasticSearch 以后，我们接着安装 SkyWalking。
+
+首先去到官网下载 SkyWalking 压缩包：http://skywalking.apache.org/downloads/
+
+下载完成以后解压到指定路径（注意：该路径不能包含空格，也不能包含英文，如果包含空格，在启动 SkyWalking 的时候会出现错误）：
+
+![image-20201103141242498](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201103141242498.png)
+
+在运行以前，我们需要进入到 config 目录中修改配置文件。这是由于默认的配置下，SkyWalking 使用的存储介质是 H2 数据库，我们需要修改为 Elas 数据库。
+
+打开 config 文件夹中的 application.yml 文件，搜索关键字 storage，然后在 selector 的标签中把 h2 修改为 elasticsearch7：
+
+![image-20201103141514511](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201103141514511.png)
+
+修改完成以后，进入到 bin 目录，然后运行 startup.bat 文件，会得到以下的输出：
+
+![image-20201103141650149](19-Spring-Cloud-Alibaba-全家桶整合项目.assets/image-20201103141650149.png)
+
+> 通过上面的启动日志可以看出：SkyWalking 是一个 SpringBoot 项目，而且支持多种数据库，数据库的选择是通过 storage 标签指定的。
 
 ## 五、Spring Cloud Gatewa
 
