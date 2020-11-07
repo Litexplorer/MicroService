@@ -843,6 +843,8 @@ elasticsearch.bat
 
 > 通过上面的启动日志可以看出：SkyWalking 是一个 SpringBoot 项目，而且支持多种数据库，数据库的选择是通过 storage 标签指定的。
 
+
+
 ## 五、Spring Cloud Gatewa
 
 ### 5.1 什么是 Spring Cloud Gateway
@@ -1061,3 +1063,49 @@ http://localhost:9000/nacos-consumer-feign/echo/hi
 $$
 网关 IP:网关端口/服务名称/请求路径
 $$
+
+## 六、Spring Cloud Alibaba 异步通信
+
+### 6.1 消息队列的流派
+
+### 6.2 RocketMQ 简介
+
+#### 6.2.1 概述
+
+消息队列作为高并发系统的核心组件之一，能够帮助业务系统结构提升开发效率和系统稳定性。
+
+主要有以下优势：
+
+- 削峰填谷：主要解决瞬时写压力大于应用非业务员能力导致消息丢失、系统奔溃等问题；
+- 系统解耦：解决不同重要城市。不同能力级别系统之间依赖导致一死全死；
+- 提升性能：当存在一对多调用时，可以发一条消息给消息系统，让消息系统通知相关系统；
+- 蓄流压测：线上有些链路不好压测，可快车通过堆积一定量消息再放开来压测；
+
+#### 6.2.2 RocketMQ
+
+Apache Alibaba RocketMQ 是一个消息中间件。消息中间件中有两个角色：消息生产者和消息消费者。RocketMQ 里同样有这两个概念，消息生产者负责创建消息并发送到 RocketMQ 服务器，RocketMQ 服务器会将消息持久化到磁盘，消息消费者从 RocketMQ 服务器拉取消息并提交给应用消费。
+
+#### 6.2.3 RocketMQ 的特点
+
+RocketMQ 是一款分布式、队列模型的消息中间件，具有以下特点：
+
+- 支持严格的消息顺序
+- 支持 Topic 与 Queue 两种模式
+- 亿级消息堆积能力
+- 比较友好的分布式特性
+- 同时支持 Push 与 Pull 方式消费消息
+- **历经多次天猫双十一海量消息**考验；
+
+#### 6.4 RocketMQ 的优势
+
+目前主流的 MQ 主要是 RocketMQ、kafka、RabbitMQ，其主要优势有：
+
+1. 支持事务型消息（消息发送和 DB 操作保持两房的最终一致性，RabbitMQ 和Kafka 不支持）
+2. 支持结合 RocketMQ 的多个系统之间数据最终一致性（多方事务，二方事务是前提）
+3. 支持 18 个级别的延迟消息（RabbitMQ 和 Kafka 不支持）
+4. 支持指定次数和时间间隔的失败消息重发（Kafka 不支持，RabbitMQ 需要手动确认）
+5. 支持 Consumer 端 Tag 过滤，减少不必要的网络传输（RabbitMQ 和 Kafka 不支持）
+6. 支持重复消费（RabbitMQ 不支持，Kafka 支持）
+
+
+
